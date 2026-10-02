@@ -1,0 +1,106 @@
+name: Build sd-cli (CUDA, Linux x86_64)
+
+# Rebuild manually from the Actions tab, or push a change to this file.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-cuda-linux.yml'
+
+permissions:
+  contents: write # needed to publish the GitHub Release
+
+env:
+  SDCPP_REF: master-929-3f8527a # pinned stable-diffusion.cpp tag (same as the Colab notebook)
+  CUDA_VERSION: '12.6'
+  CUDA_ARCHS: '75;80;86;89;90' # T4, A100, A10/L4, 4090, H100
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout stable-diffusion.cpp
+        uses: actions/checkout@v4
+        with:
+          repository: leejet/stable-diffusion.cpp
+          ref: ${{ env.SDCPP_REF }}
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git
+
+      - name: Install CUDA toolkit (compiler only, no driver needed)
+        run: |
+          wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+          sudo dpkg -i cuda-keyring_1.1-1_all.deb
+          sudo apt-get update
+          sudo apt-get install -y cuda-toolkit-12-6
+          echo "/usr/local/cuda-12.6/bin" >> "$GITHUB_PATH"
+
+      - name: Configure (CUDA, Release)
+        run: |
+          cmake -B build \
+            -DSD_CUDA=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CUDA_ARCHITECTURES="${{ env.CUDA_ARCHS }}"
+
+      - name: Build sd-cli
+        run: cmake --build build --config Release -j"$(nproc)"
+
+      - name: Package portable tarball
+        run: |
+          set -e
+          rm -rf dist && mkdir -p dist/bin dist/lib
+          cp build/bin/sd-cli dist/bin/
+          while IFS= read -r line; do
+            soname="$(echo "$line" | awk '{print $1}')"
+            libpath="$(echo "$line" | awk '{print $3}')"
+            case "$soname" in
+              libcudart.so*|libcublas.so*|libcublasLt.so*) ;;
+              *) continue ;;
+            esac
+            [ -n "$libpath" ] && [ -f "$libpath" ] || continue
+            cp -L "$libpath" "dist/lib/$soname"
+          done < <(ldd dist/bin/sd-cli)
+          echo '--- bundled libs ---'
+          ls -la dist/lib
+          echo '--- sd-cli linkage ---'
+          ldd dist/bin/sd-cli || true
+          cat > dist/sd-cli.sh <<'EOF'
+          #!/bin/bash
+          HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          export LD_LIBRARY_PATH="$HERE/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          exec "$HERE/bin/sd-cli" "$@"
+          EOF
+          chmod +x dist/sd-cli.sh dist/bin/sd-cli
+          ./dist/sd-cli.sh --help | head -5
+          tar -czf sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz -C dist .
+          ls -lh ./*.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64
+          path: sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: sdcpp-${{ env.SDCPP_REF }}-cuda12.6
+          name: sd-cli CUDA 12.6 (sdcpp ${{ env.SDCPP_REF }})
+          body: |
+            Portable `sd-cli` build of stable-diffusion.cpp (`${{ env.SDCPP_REF }}`) for Linux x86_64 with CUDA.
+
+            - Built on ubuntu-22.04 (glibc 2.35, runs on newer distros), CUDA toolkit 12.6, GPU archs sm_75;80;86;89;90 (T4, A100, A10/L4, 4090, H100)
+            - CUDA runtime libs (libcudart, libcublas, libcublasLt) bundled in `lib/`; `libcuda.so` comes from the host NVIDIA driver (forward-compatible with CUDA 12.x, so driver/OS upgrades keep working)
+            - No FUSE, no root needed — extract and run `./sd-cli.sh`
+
+            Google Colab quickstart:
+
+            ```bash
+            wget -q https://github.com/fendimaharsi0-sketch/sdcpp-cuda-linux/releases/download/sdcpp-master-929-3f8527a-cuda12.6/sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
+            tar xzf sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
+            ./sd-cli.sh --help
+            ```
+          files: sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
