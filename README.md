@@ -28,6 +28,18 @@ tar xzf sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
 ./sd-cli.sh --help
 ```
 
+## Proof of concept: Qwen-Image-2.1 on free Colab T4
+
+[`Qwen-Image-2.1-sdcpp_colab-t4.ipynb`](Qwen-Image-2.1-sdcpp_colab-t4.ipynb)
+runs Qwen-Image-2.1 on a free Colab Tesla T4 with this binary — no torch,
+pure `sd-cli`. It downloads official weights (Comfy-Org INT8-convrot unet,
+Qwen3-VL-8B-Instruct Q4_K_M text encoder, bf16 VAE) plus the Viggle 6-step
+turbo LoRA, and generates 1024px images in ~1.5 min on a T4.
+
+> The recipe (flags, turbo sigmas, VRAM fit) was verified on a Colab T4;
+> the official-weight variant in the notebook uses the same architecture
+> and quantization as the tested run, but hasn't been re-tested on GPU.
+
 ## Rebuild
 
 Actions → "Build sd-cli (CUDA, Linux x86_64)" → Run workflow.
