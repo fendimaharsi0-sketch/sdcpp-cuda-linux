@@ -24,6 +24,7 @@ jobs:
         with:
           repository: leejet/stable-diffusion.cpp
           ref: ${{ env.SDCPP_REF }}
+          submodules: recursive # ggml is a submodule; empty without this
 
       - name: Install build tools
         run: |
