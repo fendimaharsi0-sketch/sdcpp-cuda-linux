@@ -30,6 +30,8 @@ tar xzf sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
 
 ## Proof of concept: Qwen-Image-2.1 on free Colab T4
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/fendimaharsi0-sketch/sdcpp-cuda-linux/blob/main/Qwen-Image-2.1-sdcpp_colab-t4.ipynb)
+
 [`Qwen-Image-2.1-sdcpp_colab-t4.ipynb`](Qwen-Image-2.1-sdcpp_colab-t4.ipynb)
 runs Qwen-Image-2.1 on a free Colab Tesla T4 with this binary — no torch,
 pure `sd-cli`. It downloads official weights (Comfy-Org INT8-convrot unet,
