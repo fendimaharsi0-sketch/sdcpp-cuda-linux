@@ -35,8 +35,10 @@ tar xzf sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
 [`Qwen-Image-2.1-sdcpp_colab-t4.ipynb`](Qwen-Image-2.1-sdcpp_colab-t4.ipynb)
 runs Qwen-Image-2.1 on a free Colab Tesla T4 with this binary — no torch,
 pure `sd-cli`. It downloads official weights (Comfy-Org INT8-convrot unet,
-Qwen3-VL-8B-Instruct Q4_K_M text encoder, bf16 VAE) plus the Viggle 6-step
-turbo LoRA, and generates 1024px images in ~1.5 min on a T4.
+Qwen3-VL-8B-Instruct Q4_K_M text encoder, texture-fix bf16 VAE) plus the Viggle 6-step
+turbo LoRA, and generates 1024px images in ~1.5 min on a T4. The VAE dropdown
+in cell ④ offers a texture-fix decoder variant (default, removes checkerboard
+artifacts) or the stock VAE.
 
 > The recipe (flags, turbo sigmas, VRAM fit) was verified on a Colab T4
 > with these official weights (txt2img and image editing), using the
