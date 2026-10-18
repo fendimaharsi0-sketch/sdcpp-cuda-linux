@@ -23,7 +23,7 @@ keeps it working across OS upgrades.
 ## Colab quickstart
 
 ```bash
-wget -q https://github.com/fendimaharsi0-sketch/sdcpp-cuda-linux/releases/download/sdcpp-master-929-3f8527a-cuda12.6/sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
+wget -q https://github.com/fendimaharsi0-sketch/sdcpp-cuda-linux/releases/download/sdcpp-master-975-95b3090-cuda12.6/sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
 tar xzf sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
 ./sd-cli.sh --help
 ```
