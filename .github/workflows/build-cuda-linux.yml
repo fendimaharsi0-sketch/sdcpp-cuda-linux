@@ -11,7 +11,7 @@ permissions:
   contents: write # needed to publish the GitHub Release
 
 env:
-  SDCPP_REF: master-929-3f8527a # pinned stable-diffusion.cpp tag (same as the Colab notebook)
+  SDCPP_REF: master-975-95b3090 # pinned stable-diffusion.cpp tag (same as the Colab notebook)
   CUDA_VERSION: '12.6'
   CUDA_ARCHS: '75;80;86;89;90' # T4, A100, A10/L4, 4090, H100
 
@@ -100,7 +100,7 @@ jobs:
             Google Colab quickstart:
 
             ```bash
-            wget -q https://github.com/fendimaharsi0-sketch/sdcpp-cuda-linux/releases/download/sdcpp-master-929-3f8527a-cuda12.6/sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
+            wget -q https://github.com/fendimaharsi0-sketch/sdcpp-cuda-linux/releases/download/sdcpp-${{ env.SDCPP_REF }}-cuda12.6/sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
             tar xzf sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
             ./sd-cli.sh --help
             ```
