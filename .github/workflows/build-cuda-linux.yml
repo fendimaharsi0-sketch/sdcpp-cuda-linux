@@ -1,8 +1,17 @@
 name: Build sd-cli (CUDA, Linux x86_64)
 
 # Rebuild manually from the Actions tab, or push a change to this file.
+# The stable-diffusion.cpp ref is resolved at run time: leave the
+# `sdcpp_ref` input empty to build upstream's LATEST release tag, or
+# fill it (e.g. master-975-95b3090) to pin a specific one.
 on:
   workflow_dispatch:
+    inputs:
+      sdcpp_ref:
+        description: 'stable-diffusion.cpp tag to build (kosong = latest upstream)'
+        required: false
+        default: ''
+        type: string
   push:
     paths:
       - '.github/workflows/build-cuda-linux.yml'
@@ -11,7 +20,6 @@ permissions:
   contents: write # needed to publish the GitHub Release
 
 env:
-  SDCPP_REF: master-975-95b3090 # pinned stable-diffusion.cpp tag (same as the Colab notebook)
   CUDA_VERSION: '12.6'
   CUDA_ARCHS: '75;80;86;89;90' # T4, A100, A10/L4, 4090, H100
 
@@ -19,6 +27,27 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
+      - name: Resolve stable-diffusion.cpp ref
+        env:
+          INPUT_REF: ${{ inputs.sdcpp_ref }}
+        run: |
+          set -e
+          if [ -n "$INPUT_REF" ]; then
+            REF="$INPUT_REF"
+            echo "Using pinned ref from workflow input: $REF"
+          else
+            # Latest release tag via the releases/latest redirect (no GitHub API,
+            # same trick the Colab notebooks use — the API rate-limits shared IPs).
+            URL="$(curl -sIL -o /dev/null -w '%{url_effective}' https://github.com/leejet/stable-diffusion.cpp/releases/latest)"
+            REF="${URL##*/}"
+            echo "Resolved latest upstream release: $REF ($URL)"
+          fi
+          case "$REF" in
+            master-*) ;;
+            *) echo "::error::Unexpected sd.cpp ref '$REF' — expected a master-* release tag"; exit 1 ;;
+          esac
+          echo "SDCPP_REF=$REF" >> "$GITHUB_ENV"
+
       - name: Checkout stable-diffusion.cpp
         uses: actions/checkout@v4
         with:
