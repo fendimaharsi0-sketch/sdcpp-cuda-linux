@@ -1,11 +1,10 @@
 name: Build sd-cli (CUDA, Linux x86_64)
 
-# DRAFT — belum di-push ke repo. Perubahan vs versi sekarang: tarball yang
-# sama ikut mem-pack sd-server (biner API server upstream). Alasan patch ini
-# aman tanpa ubah configure: di upstream master-995-fd21ecf, SD_BUILD_EXAMPLES
-# default ON untuk build standalone, examples/CMakeLists.txt menambah cli DAN
-# server tanpa syarat, jadi `cmake --build build` SUDAH menghasilkan
-# build/bin/sd-server — workflow lama hanya membuangnya di tahap packaging.
+# Pack sd-server ke dalam tarball yang sama (sejak rilis ini). Alasan:
+# di upstream master-995-fd21ecf, SD_BUILD_EXAMPLES default ON untuk build
+# standalone, examples/CMakeLists.txt menambah cli DAN server tanpa syarat,
+# jadi `cmake --build build` SUDAH menghasilkan build/bin/sd-server —
+# workflow lama hanya membuangnya di tahap packaging.
 # Catatan: runner CI tidak memasang pnpm, jadi server ini API-only (tanpa web
 # UI yang di-embed; SD_SERVER_BUILD_FRONTEND butuh pnpm + frontend dir).
 # Untuk pemakaian notebook (batch via API) itu cukup; UI bisa menyusul.
@@ -143,17 +142,43 @@ jobs:
           exec "$HERE/bin/sd-server" "$@"
           EOF
           chmod +x dist/sd-cli.sh dist/sd-server.sh dist/bin/sd-cli dist/bin/sd-server
-          ./dist/sd-cli.sh --help | head -5
-          # Smoke test server: cukup buktikan biner jalan + shared libs
-          # ke-load. Exit code --help TIDAK di-hard-fail (perilaku --help
-          # server belum diverifikasi di upstream ini) — yang di-print
-          # adalah exit code-nya, jadi log CI tetap menunjukkan hasilnya.
-          ./dist/sd-server.sh --help > /tmp/sd-server-help.txt 2>&1; echo "sd-server --help exit: $?"
+          # Smoke test — INFORMATIF SAJA, tidak boleh menggagalkan build.
+          # Alasan (terbukti di run #5, 28 Okt 2026): runner CI ini TIDAK
+          # punya driver NVIDIA (toolkit saja, sesuai komentar step install
+          # CUDA: "compiler only, no driver needed"), jadi libcuda.so.1
+          # tidak ada dan biner gagal load dengan exit 127. GitHub Actions
+          # menjalankan step ini dengan bash -eo pipefail, jadi smoke test
+          # lama `./dist/sd-cli.sh --help | head -5` ikut gagal — padahal
+          # itu bukan cacat biner, melainkan ketiadaan driver di CI.
+          # Biner diuji beneran di Colab (yang ada drivernya).
+          # Dua jebakan set -e yang diperbaiki di sini:
+          #  (1) pipeline dengan pipefail ikut gagal kalau biner gagal load;
+          #  (2) pola `cmd > file; echo $?` di bawah set -e akan exit SEBELUM
+          #      echo jalan kalau cmd gagal — jadi exit code tidak kecatat.
+          # Solusinya: matikan errexit sementara (set +e) untuk blok smoke.
+          # Cek keras yang tetap dipertahankan: file biner ada + executable
+          # (assert di atas), ldd kedua biner, dan tar di bawah (set -e aktif
+          # lagi, jadi tar yang gagal tetap menggagalkan build).
+          # Coba sediakan stub libcuda dari toolkit (HANYA untuk smoke di CI;
+          # stub tidak ikut ke tarball karena loop ldd di atas sudah lewat,
+          # dan filter loop hanya menyalin libcudart/cublas/cublasLt).
+          mkdir -p /tmp/cuda-stub
+          cp /usr/local/cuda-12.6/targets/x86_64-linux/lib/stubs/libcuda.so /tmp/cuda-stub/libcuda.so.1 2>/dev/null || true
+          export LD_LIBRARY_PATH="/tmp/cuda-stub${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          set +e
+          ./dist/sd-cli.sh --help > /tmp/sd-cli-help.txt 2>&1
+          echo "sd-cli --help exit: $?"
+          ./dist/sd-server.sh --help > /tmp/sd-server-help.txt 2>&1
+          echo "sd-server --help exit: $?"
+          set -e
+          head -5 /tmp/sd-cli-help.txt || true
           head -20 /tmp/sd-server-help.txt || true
           echo '--- dist contents ---'
           ls -la dist dist/bin
           tar -czf sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz -C dist .
           ls -lh ./*.tar.gz
+          echo '--- tarball contents (sd-server harus ada di bin/) ---'
+          tar -tzf sdcpp-sd-cli-cuda12.6-ubuntu22.04-x86_64.tar.gz
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
